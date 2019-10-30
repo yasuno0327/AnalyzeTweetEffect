@@ -1,40 +1,52 @@
 
+import datetime
 from lib.data_serializer import DataSerializer
 from lib.text_evaluator import TextEvaluator
 from lib.stock_data_reader import StockDataReader
 from lib.correlation_evaluator import CorrelationEvaluator
-import datetime
-import matplotlib.pyplot as plt
+from lib.data_visualizer import DataVisualizer
 
 filename = 'condensed_2018.json'
 serializer = DataSerializer(filename)
 datas = serializer.text_datas()
-median = datas[int(len(datas)/2)]
-datas = serializer.limit_data_with_date(median['date'])
+# median = datas[int(len(datas)/3) - 1]
+# datas = serializer.limit_data_with_date(median['date'])
+datas = datas[0:500]
 print("splited data size", len(datas))
 analyzer = TextEvaluator(datas)
 datas = analyzer.evaluate()
-datareader = StockDataReader(1)
+datareader = StockDataReader(14)
+
 # Calculate average
 # Todo: Cache datas
 for i in range(len(datas)):
     average = datareader.read_data(datas[i]['date'])
     datas[i]['average'] = average
 
-compounds = map(lambda data: data['compound'], datas)
-positives = map(lambda data: data['pos'], datas)
-print(list(positives))
-negatives = map(lambda data: data['neg'], datas)
-print(list(negatives))
-averages = map(lambda data: data['average'], datas)
+compounds = list(map(lambda data: data['compound'], datas))
+positives = list(map(lambda data: data['pos'], datas))
+negatives = list(map(lambda data: data['neg'], datas))
+scores = list(map(lambda data: data['score'], datas))
+averages = list(map(lambda data: data['average'], datas))
+
+# Caluculate correlation
 com_cor = CorrelationEvaluator(compounds, averages)
-neg_cor = CorrelationEvaluator(negatives, averages)
 pos_cor = CorrelationEvaluator(positives, averages)
+neg_cor = CorrelationEvaluator(negatives, averages)
+score_cor = CorrelationEvaluator(scores, averages)
+
+# Show data scatter plot
+# DataVisualizer(compounds, 'compund').scatter()
+# DataVisualizer(positives, 'positives').scatter()
+# DataVisualizer(negatives, 'negatives').scatter()
+DataVisualizer(scores, 'scores').scatter()
+DataVisualizer(averages, 'delta').scatter()
+
+# Print result to stdout
 print('com', com_cor.evaluate())
-print('\n')
-print('neg', neg_cor.evaluate())
-print('\n')
-print('pos', pos_cor.evaluate())
+print('positive', pos_cor.evaluate())
+print('negative', neg_cor.evaluate())
+print('score', score_cor.evaluate())
 
 # 1ヶ月など短い期間でやってみる
 # 散布図などにまとめてデータの性質をつかんでみる

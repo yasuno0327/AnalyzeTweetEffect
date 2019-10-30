@@ -18,7 +18,7 @@ class DataSerializer():
                     data['created_at'], '%a %b %d %H:%M:%S %z %Y')
                 texts.append(
                     {'text': data['text'], 'date': parsed_time})
-                self.texts = texts
+        self.texts = texts
         return texts
 
     def limit_data_with_date(self, max_time):
