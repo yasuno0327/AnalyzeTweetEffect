@@ -9,8 +9,7 @@ from lib.data_visualizer import DataVisualizer
 from pymongo import MongoClient
 import matplotlib.pyplot as plt
 import numpy as np
-
-Nan = np.nan
+from emotion_recognition.emotion_predictor import EmotionPredictor
 
 
 def zscore(x, axis=None):
@@ -25,7 +24,7 @@ client = MongoClient('0.0.0.0', 27017)
 db = client.trump_stock
 collection = db.tweet_col
 dow_col = db.dow_jones
-datas = collection.find_one({'year': 2018})['tweet_data']
+datas = collection.find_one({'year': 2013})['tweet_data']
 timeseries = []
 stock_data = []
 
@@ -38,7 +37,7 @@ tweet_senti = []
 
 for data in datas:
     stock_price = dow_col.find_one(
-        {'date': data['date'] + datetime.timedelta(days=4)})
+        {'date': data['date'] + datetime.timedelta(days=11)})
     if(stock_price == None):
         continue
     if(stock_price['price'] == 0):
