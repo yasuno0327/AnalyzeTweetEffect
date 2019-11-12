@@ -14,7 +14,7 @@ client = MongoClient('0.0.0.0', 27017)
 db = client.trump_stock
 collection = db.dow_jones
 
-year = 2018
+year = 2010
 
 start = datetime.datetime(year, 1, 1)
 end = datetime.datetime(year, 12, 31)
