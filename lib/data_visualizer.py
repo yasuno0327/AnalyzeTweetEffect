@@ -4,9 +4,9 @@ import numpy as np
 
 class DataVisualizer():
 
-    def __init__(self, y, title):
+    def __init__(self, x, y, title):
         self.y = y
-        self.x = np.random.rand(len(y))
+        self.x = x
         self.title = title
 
     def scatter(self):
