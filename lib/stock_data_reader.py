@@ -1,28 +1,27 @@
 import pandas_datareader.data as web
 import numpy as np
 import datetime
+from pymongo import MongoClient
 
 
 class StockDataReader():
-    # period = number of data (period >= 2)
-    def __init__(self, period):
-        self.period = datetime.timedelta(days=period)
+    def __init__(self, start, end):
+        self.collection = MongoClient('0.0.0.0', 27017).trump_stock.dow_jones
+        self.start = start
+        self.end = end
 
-    # Get Dow-Jones Price at specify period
-    # date => tweet date
-    def read_data(self, date):
-        period = self.period
-        start = date + datetime.timedelta(days=3)
-        end = start + period
-        djia = web.DataReader('DJIA', 'fred', start=start, end=end)
-        datas = djia.dropna()['DJIA']
-        return datas
-        # while None in datas:
-        #     start = start + datetime.timedelta(days=1)
-        #     end = start + period
-        #     djia = web.DataReader('DJIA', 'fred', start=start, end=end)
-        #     datas = djia.dropna()['DJIA']
+    def read_price(self):
+        res = self.collection.find({'date': self.start})
+        return res[0]['price']
 
-        # print(datas)
-        # delta = (max(datas) - min(datas)) / datas[0]
-        # return delta
+    def period_price_sub(self):
+        res = self.collection.find(
+            {'date': {'$lte': self.end, '$gte': self.start}})
+        result = [res[0], res[-1]]
+        return result
+
+    def period_price_delta(self):
+        res = self.collection.find(
+            {'data': {'$gte': self.start, '$lte': self.end}})
+        delta = (max(res) - min(res)) / res[0]
+        return delta
