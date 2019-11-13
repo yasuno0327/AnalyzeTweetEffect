@@ -5,7 +5,7 @@ from pymongo import MongoClient
 
 client = MongoClient('0.0.0.0', 27017)
 db = client.trump_stock
-collection = db.tweet_col
+collection = db.tweets
 
 
 def separate_every_day(datas):
@@ -34,4 +34,5 @@ for year in range(2009, 2019):
     serializer = DataSerializer(filename)
     year_datas = serializer.text_datas()
     separated = separate_every_day(year_datas)
-    collection.update({'year': year}, {'$set': {'tweet_data': separated}})
+    for data in separated:
+        collection.insert_one(data)

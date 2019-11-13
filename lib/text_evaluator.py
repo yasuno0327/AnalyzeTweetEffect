@@ -7,6 +7,7 @@ class TextEvaluator():
         self.day_data = day_data
         self.vader_analyzer = SentimentIntensityAnalyzer()
 
+    # Calculate score and return daily max score
     def evaluate(self):
         len_datas = len(self.day_data['datas'])
         for i in range(len_datas):
@@ -15,11 +16,12 @@ class TextEvaluator():
             negative = 0
             score = self.vader_analyzer.polarity_scores(
                 self.day_data['datas'][i]['text'])
-            compound += score['compound']
-            positive += score['pos']
-            negative += score['neg']
-
-        compound = compound/len_datas
-        positive = positive/len_datas
-        negative = negative/len_datas
-        return compound
+            if(score['compound'] > compound):
+                compound += score['compound']
+            if(score['pos'] > positive):
+                positive += score['pos']
+            if(score['neg'] > negative):
+                negative += score['neg']
+        score = {'compound': compound,
+                 'pos': positive, 'neg': negative}
+        return score
