@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from emotion_recognition.emotion_predictor import EmotionPredictor
 from statistics import mean
+from statsmodels.tsa.stattools import grangercausalitytests
+import numpy as np
+import pandas as pd
 
 
 def zscore(x, axis=None):
@@ -24,6 +27,8 @@ def rate_of_change(base, changed):
 def fluctuating(base, changed):
     return base-changed
 
+def granger_causality(df, time_key, causality_key):
+    return grangercausalitytests(df[[time_key, causality_key]], maxlag=20)
 
 # Initialize db
 client = MongoClient('0.0.0.0', 27017)
@@ -91,58 +96,31 @@ for tweet in tweets:
         else:
             tweets_of_days.append(tweet['text'])
 
-# 相関係数の計算
-# anger
-ang_rate = CorrelationEvaluator(rate_datas, anger)
-ang_fluc = CorrelationEvaluator(fluctuation_datas, anger)
+df = pd.DataFrame({
+    'rate': rate_datas,
+    'fluctuation': fluctuation_datas,
+    'anger': anger,
+    'depression': depression,
+    'fatigue': fatigue,
+    'tension': tension,
+    'confusion': confusion
+})
 
-# depression
-dep_rate = CorrelationEvaluator(rate_datas, depression)
-dep_fluc = CorrelationEvaluator(fluctuation_datas, depression)
+f_datas = []
+p_datas = []
+mood_index = ['anger', 'depression', 'fatigue', 'tension', 'confusion']
 
-# fatigue
-fat_rate = CorrelationEvaluator(rate_datas, fatigue)
-fat_fluc = CorrelationEvaluator(fluctuation_datas, fatigue)
+# グレンジャー因果検定
+for mood in mood_index:
+    response = granger_causality(df, 'rate', mood)
+    ftest = lag['ssr_ftest']
+    f = ftest[0]
+    p = ftest[1]
+    f_datas.append(f)
+    p_datas.append(p)
+    f_df = pd.DataFrame({
+    'f': f_datas,
+    'p': p_datas
+    })
 
-# vigour
-vig_rate = CorrelationEvaluator(rate_datas, vigour)
-vig_fluc = CorrelationEvaluator(fluctuation_datas, vigour)
-
-# tension
-ten_rate = CorrelationEvaluator(rate_datas, tension)
-ten_fluc = CorrelationEvaluator(fluctuation_datas, tension)
-
-# confusion
-con_rate = CorrelationEvaluator(rate_datas, confusion)
-con_fluc = CorrelationEvaluator(fluctuation_datas, confusion)
-
-
-# plt.subplot(221)
-# plt.plot(timeseries, zscore(count_data), color='b', label="NumberOfTweet")
-# plt.plot(timeseries, zscore(stock_data), color='r', label="Dow-Jones")
-# plt.title(f"lag {lag} Dow x tweet count")
-# plt.xlabel("datetime")
-# plt.ylabel("Zscore")
-# plt.legend(loc='best')
-
-# plt.tight_layout()
-# plt.show()
-
-# 結果プリント
-print("anger rate", ang_rate.evaluate())
-print("anger fluctuation", ang_fluc.evaluate())
-
-print("depression rate", dep_rate.evaluate())
-print("depression fluctuation", dep_fluc.evaluate())
-
-print("fatigue rate", fat_rate.evaluate())
-print("fatigue fluctuation", fat_fluc.evaluate())
-
-print("vigour rate", vig_rate.evaluate())
-print("vigour fluctuation", vig_fluc.evaluate())
-
-print("tension rate", ten_rate.evaluate())
-print("tension fluctuation", ten_fluc.evaluate())
-
-print("confusion rate", con_rate.evaluate())
-print("confusion fluctuation", con_fluc.evaluate())
+    f_df.to_csv(f'result/{mood}.csv')
