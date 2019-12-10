@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from lib.data_serializer import DataSerializer
 from pymongo import MongoClient
 import numpy as np
 import pandas_datareader.data as web
@@ -13,7 +12,7 @@ client = MongoClient('0.0.0.0', 27017)
 db = client.trump_stock
 collection = db.djia
 
-start = datetime(2017, 1, 20)
+start = datetime(2017, 1, 1)
 end = datetime.now()
 djia = web.DataReader('dia', 'yahoo', start=start, end=end)
 for pd_date in djia.index:
