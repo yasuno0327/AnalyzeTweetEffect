@@ -10,6 +10,7 @@ from statsmodels.tsa.stattools import grangercausalitytests
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 client = MongoClient('0.0.0.0', 27017)
 db = client.trump_stock
@@ -73,19 +74,27 @@ fluctuation_datas = []
 prices = []
 tweet_texts = []
 dates = []
+positives = []
+negatives = []
+compounds = []
 
 # Initialize poms model
 model = EmotionPredictor(classification='poms', setting='mc')
+vader_analyzer = SentimentIntensityAnalyzer()
 
 for tweets in days_tweets:
     texts = ''
     for tweet in tweets['datas']:
         texts += tweet['text'] + " "
     tweet_texts.append(texts)
+    vader = vader_analyzer.polarity_scores(texts)
     price = get_stock_data(tweets['data_type'], tweets['date'])
     if price is None:
         print('continue')
         continue
+    positives.append(vader['pos'])
+    negatives.append(vader['neg'])
+    compounds.append(vader['compound'])
     rate = rate_of_change(price['base'], price['comparison'])
     fluctuation = fluctuating(price['base'], price['comparison'])
     rate_datas.append(rate)
@@ -108,11 +117,26 @@ df = pd.DataFrame({
     'dates': dates
 })
 
-df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,3), figsize=(9,6), title='zscore')
-plt.savefig('result/images/zscore.png')
+ps_df = pd.DataFrame({
+    'rate': zscore(rate_datas),
+    'fluctuation': zscore(fluctuation_datas),
+    'prices': zscore(prices),
+    'positives': zscore(positives),
+    'negatives': zscore(negatives),
+    'compounds': zscore(compounds),
+    'dates': dates
+})
+
+df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,3), figsize=(9,6), title='POMS Zscore')
+plt.savefig('result/images/poms_zscore.png')
+plt.close()
+
+ps_df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,2), figsize=(9,6), title='Vader Zscore')
+plt.savefig('result/images/vader_zscore.png')
 plt.close()
 
 mood_index = ['anger', 'depression', 'fatigue', 'tension', 'confusion', 'vigour']
+posinega_index = ['positives', 'negatives', 'compounds']
 data_index = ['rate', 'fluctuation', 'prices']
 
 # response = granger_causality(df, 'rate', 'anger')
@@ -130,3 +154,15 @@ for data in data_index:
             p_datas.append(ftest[1])
         g_df = pd.DataFrame({'F': f_datas, 'p': p_datas}, index=[i for i in range(1, maxlag+1)])
         g_df.to_csv(f'result/{data}/{mood}.csv', index_label='Lag')
+
+for data in data_index:
+    for posinega in posinega_index:
+        response = granger_causality(ps_df, data, posinega)
+        f_datas = []
+        p_datas = []
+        for key in response:
+            ftest = response[key][0]['ssr_ftest']
+            f_datas.append(ftest[0])
+            p_datas.append(ftest[1])
+        g_df = pd.DataFrame({'F': f_datas, 'p': p_datas}, index=[i for i in range(1, maxlag+1)])
+        g_df.to_csv(f'result/{data}/{posinega}.csv', index_label='Lag')
