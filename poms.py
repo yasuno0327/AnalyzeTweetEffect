@@ -36,21 +36,25 @@ def granger_causality(df, time_key, causality_key):
 def get_stock_data(data_type, date):
     base_date = None
     comparison_date = None
+    reflected_date = None
     if data_type == 'before_open':
         base_date = date - timedelta(1)
         base_type = 'close'
         comparison_date = date
         comparison_type = 'open'
+        reflected_date = comparison_date.replace(hour=9,minute=30,second=0,microsecond=0)
     elif data_type == 'opening':
         base_date = date
         base_type = 'open'
         comparison_date = date
         comparison_type = 'close'
+        reflected_date = comparison_date.replace(hour=16,minute=0,second=0,microsecond=0)
     elif data_type == 'after_close':
         base_date = date
         base_type = 'close'
         comparison_date = date + timedelta(1)
         comparison_type = 'open'
+        reflected_date = comparison_date.replace(hour=9,minute=30,second=0,microsecond=0)
     else:
         return None
     base_stock = dow_col.find_one({'date': base_date})
@@ -63,9 +67,10 @@ def get_stock_data(data_type, date):
     while comparison_stock is None:
         comparison_date += timedelta(1)
         base_type = 'open'
+        reflected_date = comparison_date.replace(hour=16,minute=30,second=0,microsecond=0)
         comparison_stock = dow_col.find_one({'date': comparison_date})
 
-    return {'base': base_stock[base_type], 'comparison': comparison_stock[comparison_type]}
+    return {'base': base_stock[base_type], 'comparison': comparison_stock[comparison_type], 'date': reflected_date}
 
 take_office_at = datetime(2017, 1, 20)
 days_tweets = tweet_col.find({'date': {'$gte': take_office_at}}).sort('date', 1)
@@ -99,7 +104,7 @@ for tweets in days_tweets:
     fluctuation = fluctuating(price['base'], price['comparison'])
     rate_datas.append(rate)
     prices.append(price['comparison'])
-    dates.append(tweets['date'])
+    dates.append(price['date'])
     fluctuation_datas.append(fluctuation)
 
 
@@ -114,8 +119,10 @@ df = pd.DataFrame({
     'tension': zscore(result['Tension'].values), # 緊張
     'confusion': zscore(result['Confusion'].values),
     'vigour': zscore(result['Vigour'].values),
-    'dates': dates
+    'dates': dates # ツイート反映後の株価情報の日時
 })
+df = df.set_index('dates')
+df.to_csv('result/df/poms_frame.csv')
 
 ps_df = pd.DataFrame({
     'rate': zscore(rate_datas),
@@ -126,12 +133,14 @@ ps_df = pd.DataFrame({
     'compounds': zscore(compounds),
     'dates': dates
 })
+ps_df = ps_df.set_index('dates')
+ps_df.to_csv('result/df/posinega_frame.csv')
 
-df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,3), figsize=(9,6), title='POMS Zscore')
+df.plot(xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,3), figsize=(9,6), title='POMS Zscore')
 plt.savefig('result/images/poms_zscore.png')
 plt.close()
 
-ps_df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,2), figsize=(9,6), title='Vader Zscore')
+ps_df.plot(xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,2), figsize=(9,6), title='Vader Zscore')
 plt.savefig('result/images/vader_zscore.png')
 plt.close()
 
