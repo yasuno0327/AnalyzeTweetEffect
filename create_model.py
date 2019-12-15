@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense, LSTM, Activation
+from keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 # loc[行ラベル,列ラベル]
@@ -17,42 +19,53 @@ def create_dataset(dataset, look_back):
         for j in range(
                 dataset.shape[1]
         ):  # 列数 dataset.shape[:] => (1599, 2) ※ depression, rate 2カラムの場合
-            a = dataset.iloc[i:i + look_back, j]
+            a = dataset[i:i + look_back, j]
             xset.append(a)
-        dataY.append(dataset.iloc[i + look_back,
-                                  0])  # rateの次のデータをYに格納 => 現在のデータで予測するため
+        dataY.append(dataset[i + look_back,
+                             0])  # rateの次のデータをYに格納 => 現在のデータで予測するため
         dataX.append(xset)  # [[rate data], [depression data]]となるように格納される
     return np.array(dataX), np.array(dataY)
 
 
 # Get poms data
-look_back = 13
+look_back = 14
+scaler = MinMaxScaler(feature_range=(0, 1))
 df = pd.read_csv('result/df/poms_frame.csv').set_index('dates')
-dataset = df.loc[:, ['rate', 'depression']]
-X, Y = create_dataset(dataset, look_back)
-(x_train, x_test, y_train, y_test) = train_test_split(X,
-                                                      Y,
-                                                      test_size=0.1,
-                                                      random_state=0)
+dataset = df.loc[:, ['prices', 'depression']]
+dataset = scaler.fit_transform(dataset)
+train_size = int(len(dataset) * 0.9)
+test_size = len(dataset) - train_size
+train, test = dataset[0:train_size, :], dataset[train_size:len(dataset), :]
+x_train, y_train = create_dataset(train, look_back)
+x_test, y_test = create_dataset(test, look_back)
 
 # Build stock prediction model
 model = Sequential()
-model.add(LSTM(300, input_shape=(x_train.shape[1], look_back)))
+model.add(LSTM(128, input_shape=(x_train.shape[1], look_back)))
+model.add(Dense(500))
 model.add(Dense(1))
-model.add(Activation('relu'))
-model.compile(loss="mean_squared_error", optimizer='adam', metrics=['mape'])
+model.compile(loss="mean_squared_error", optimizer='adam')
 
 # Learning model
-model.fit(x_train, y_train, batch_size=1, epochs=200)
-model.save('model/rate_dep.h5')
+early_stopping = EarlyStopping(monitor='val_loss', mode='auto', patience=0)
+model.fit(x_train,
+          y_train,
+          batch_size=1,
+          epochs=1000,
+          callbacks=[early_stopping],
+          validation_split=0.1)
+model.save('model/deppression.h5')
 
 # Prediction
-predicted = model.predict(x_test)
-result = pd.DataFrame(predicted)
-result.columns = ['predict']
-result['actual'] = y_test
+pad_col = np.zeros(dataset.shape[1] - 1)
+
+
+def pad_array(val):
+    return np.array([np.insert(pad_col, 0, x) for x in val])
+
+
+predicted = scaler.inverse_transform(pad_array(model.predict(x_test)))[:, 0]
+actual = scaler.inverse_transform(pad_array(y_test))[:, 0]
+result = pd.DataFrame({'predict': predicted, 'actual': actual})
 result.plot()
 plt.show()
-
-score = model.evaluate(x_test, y_test)
-print(score)
