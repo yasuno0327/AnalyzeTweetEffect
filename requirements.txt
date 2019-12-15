@@ -1,0 +1,8 @@
+pandas
+pymongo
+matplotlib
+numpy
+statistics
+statsmodels
+nltk
+keras
