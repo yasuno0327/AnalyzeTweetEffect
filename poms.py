@@ -30,7 +30,7 @@ def rate_of_change(base, changed):
 
 
 def fluctuating(base, changed):
-    return base - changed
+    return changed - base
 
 
 def granger_causality(df, time_key, causality_key):
@@ -149,12 +149,12 @@ df = df.set_index('dates')
 df.to_csv('result/df/poms_frame.csv')
 
 ps_df = pd.DataFrame({
-    'rate': zscore(rate_datas),
-    'fluctuation': zscore(fluctuation_datas),
-    'prices': zscore(prices),
-    'positives': zscore(positives),
-    'negatives': zscore(negatives),
-    'compounds': zscore(compounds),
+    'rate': rate_datas,
+    'fluctuation': fluctuation_datas,
+    'prices': prices,
+    'positives': positives,
+    'negatives': negatives,
+    'compounds': compounds,
     'dates': dates
 })
 ps_df = ps_df.set_index('dates')

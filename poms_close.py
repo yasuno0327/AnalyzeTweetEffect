@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 import numbers
 from pymongo import MongoClient
@@ -18,20 +17,25 @@ close_col = db.close_base
 dow_col = db.djia
 maxlag = 20
 
+
 def zscore(x, axis=None):
     xmean = np.array(x).mean(axis=axis, keepdims=True)
     xstd = np.std(x, axis=axis, keepdims=True)
-    zscore = (x-xmean)/xstd
+    zscore = (x - xmean) / xstd
     return zscore
 
+
 def rate_of_change(base, changed):
-    return (changed-base)/base
+    return (changed - base) / base
+
 
 def fluctuating(base, changed):
-    return base-changed
+    return base - changed
+
 
 def granger_causality(df, time_key, causality_key):
     return grangercausalitytests(df[[time_key, causality_key]], maxlag=maxlag)
+
 
 def get_stock_data(tweets):
     comparison_date = tweets['date'] - timedelta(1)
@@ -44,8 +48,13 @@ def get_stock_data(tweets):
 
     return {'base': base_price, 'comparison': comparison_stock['close']}
 
+
 take_office_at = datetime(2017, 1, 20)
-days_tweets = close_col.find({'date': {'$gte': take_office_at}}).sort('date', 1)
+days_tweets = close_col.find({
+    'date': {
+        '$gte': take_office_at
+    }
+}).sort('date', 1)
 rate_datas = []
 fluctuation_datas = []
 prices = []
@@ -77,40 +86,55 @@ for tweets in days_tweets:
     dates.append(tweets['date'])
     fluctuation_datas.append(fluctuation)
 
-
 result = model.predict_probabilities(tweet_texts)
 df = pd.DataFrame({
-    'rate': zscore(rate_datas),
-    'fluctuation': zscore(fluctuation_datas),
-    'prices': zscore(prices),
+    'rate': rate_datas,
+    'fluctuation': fluctuation_datas,
+    'prices': prices,
     'anger': zscore(result['Anger'].values),
-    'depression': zscore(result['Depression'].values), # ゆううつ
+    'depression': result['Depression'].values,  # ゆううつ
     'fatigue': zscore(result['Fatigue'].values),
-    'tension': zscore(result['Tension'].values), # 緊張
+    'tension': zscore(result['Tension'].values),  # 緊張
     'confusion': zscore(result['Confusion'].values),
     'vigour': zscore(result['Vigour'].values),
     'dates': dates
 })
+df = df.set_index('dates')
+df.to_csv('result/df/poms_close_frame.csv')
 
 ps_df = pd.DataFrame({
-    'rate': zscore(rate_datas),
-    'fluctuation': zscore(fluctuation_datas),
-    'prices': zscore(prices),
+    'rate': rate_datas,
+    'fluctuation': fluctuation_datas,
+    'prices': prices,
     'positives': zscore(positives),
     'negatives': zscore(negatives),
     'compounds': zscore(compounds),
     'dates': dates
 })
+ps_df = ps_df.set_index('dates')
+ps_df.to_csv('result/df/posinega_close_frame.csv')
 
-df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,3), figsize=(9,6), title='POMS Zscore')
+df.plot(xlim=[datetime(2017, 1, 20),
+              datetime(2017, 4, 20)],
+        subplots=True,
+        layout=(3, 3),
+        figsize=(9, 6),
+        title='POMS Zscore')
 plt.savefig('result/close/images/poms_zscore.png')
 plt.close()
 
-ps_df.plot(x='dates', xlim=[datetime(2017,1,20),datetime(2017,4,20)], subplots=True, layout=(3,2), figsize=(9,6), title='Vader Zscore')
+ps_df.plot(xlim=[datetime(2017, 1, 20),
+                 datetime(2017, 4, 20)],
+           subplots=True,
+           layout=(3, 2),
+           figsize=(9, 6),
+           title='Vader Zscore')
 plt.savefig('result/close/images/vader_zscore.png')
 plt.close()
 
-mood_index = ['anger', 'depression', 'fatigue', 'tension', 'confusion', 'vigour']
+mood_index = [
+    'anger', 'depression', 'fatigue', 'tension', 'confusion', 'vigour'
+]
 posinega_index = ['positives', 'negatives', 'compounds']
 data_index = ['rate', 'fluctuation', 'prices']
 
@@ -127,7 +151,11 @@ for data in data_index:
             ftest = response[key][0]['ssr_ftest']
             f_datas.append(ftest[0])
             p_datas.append(ftest[1])
-        g_df = pd.DataFrame({'F': f_datas, 'p': p_datas}, index=[i for i in range(1, maxlag+1)])
+        g_df = pd.DataFrame({
+            'F': f_datas,
+            'p': p_datas
+        },
+                            index=[i for i in range(1, maxlag + 1)])
         g_df.to_csv(f'result/close/{data}/{mood}.csv', index_label='Lag')
 
 for data in data_index:
@@ -139,5 +167,9 @@ for data in data_index:
             ftest = response[key][0]['ssr_ftest']
             f_datas.append(ftest[0])
             p_datas.append(ftest[1])
-        g_df = pd.DataFrame({'F': f_datas, 'p': p_datas}, index=[i for i in range(1, maxlag+1)])
+        g_df = pd.DataFrame({
+            'F': f_datas,
+            'p': p_datas
+        },
+                            index=[i for i in range(1, maxlag + 1)])
         g_df.to_csv(f'result/close/{data}/{posinega}.csv', index_label='Lag')
