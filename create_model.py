@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM, Activation, Dropout
 from keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
@@ -45,6 +45,14 @@ def create_dataset(dataset, look_back):
 
 
 model_keys = [['prices'], ['prices', 'tension'], ['prices', 'depression']]
+pre_prices = None
+pr_score = None
+pre_tension = None
+ten_score = None
+pre_depression = None
+dep_tension = None
+actual = None
+
 for key in model_keys:
 
     # Get poms data
@@ -60,6 +68,7 @@ for key in model_keys:
     x_test, y_test = create_dataset(test, look_back)
 
     # Build stock prediction model
+    # model = load_model(f'model/{key[-1]}.h5')
     model = Sequential()
     model.add(LSTM(10, input_shape=(x_train.shape[1], look_back)))
     model.add(Dense(1))
@@ -88,9 +97,31 @@ for key in model_keys:
     mda_score = mda(actual, predicted) * 100
     binary_score = binary(actual, predicted) * 100
     print(f'mda score: {round(mda_score)}%')
-    result = pd.DataFrame({'predict': predicted, 'actual': actual})
-    result.plot()
-    plt.show()
+    # result = pd.DataFrame({'predict': predicted, 'actual': actual})
+    # result.plot()
+    # plt.show()
+
+    if key[-1] == 'prices':
+        pre_prices = predicted
+        pr_score = mda_score
+    elif key[-1] == 'tension':
+        pre_tension = predicted
+        ten_score = mda_score
+    elif key[-1] == 'depression':
+        pre_depression = predicted
+        dep_score = mda_score
+
+res_df = pd.DataFrame({
+    '株価単体での予測': pre_prices,
+    'tensionを使った予測': pre_tension,
+    'depressionを使った予測': pre_depression,
+    '実際の株価': actual
+})
+
+axes = res_df.plot(subplots=True, layout=(2, 2), sharex=True, sharey=True)
+plt.ylabel('株価')
+plt.savefig('result/images/lstm_res.png')
+plt.close()
 
 
 def pad_array(val):
