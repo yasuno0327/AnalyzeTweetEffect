@@ -40,6 +40,7 @@ def create_dataset(dataset, look_back):
     return np.array(dataX), np.array(dataY)
 
 
+model_keys = ['price', 'tension', 'depression']
 # Get poms data
 look_back = 14
 scaler = MinMaxScaler(feature_range=(0, 1))
@@ -56,7 +57,7 @@ x_test, y_test = create_dataset(test, look_back)
 model = Sequential()
 model.add(LSTM(10, input_shape=(x_train.shape[1], look_back)))
 model.add(Dense(1))
-# model.add(Activation('linear'))
+model.add(Activation('relu'))
 model.compile(loss="mean_squared_error", optimizer='adam', metrics=['mape'])
 
 # Learning model

@@ -165,7 +165,7 @@ df.plot(xlim=[datetime(2017, 1, 20),
         subplots=True,
         layout=(3, 3),
         figsize=(9, 6),
-        title='POMS Zscore')
+        title=None)
 plt.savefig('result/images/poms_zscore.png')
 plt.close()
 
@@ -174,7 +174,7 @@ ps_df.plot(xlim=[datetime(2017, 1, 20),
            subplots=True,
            layout=(3, 2),
            figsize=(9, 6),
-           title='Vader Zscore')
+           title='作成された時系列データ')
 plt.savefig('result/images/vader_zscore.png')
 plt.close()
 
