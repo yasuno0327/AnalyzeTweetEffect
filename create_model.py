@@ -20,6 +20,10 @@ def binary(y_true, y_pred):
     return np.mean(s.astype(np.int))
 
 
+def pad_array(val):
+    return np.array([np.insert(pad_col, 0, x) for x in val])
+
+
 # loc[行ラベル,列ラベル]
 # iloc[行の番号,列の番号]
 # ix[行番号orラベル, 列番号orラベル]
@@ -40,52 +44,54 @@ def create_dataset(dataset, look_back):
     return np.array(dataX), np.array(dataY)
 
 
-model_keys = ['price', 'tension', 'depression']
-# Get poms data
-look_back = 14
-scaler = MinMaxScaler(feature_range=(0, 1))
-df = pd.read_csv('result/df/poms_frame.csv').set_index('dates')
-dataset = df.loc[:, ['prices', 'tension']]
-dataset = scaler.fit_transform(dataset)
-train_size = int(len(dataset) * 0.9)
-test_size = len(dataset) - train_size
-train, test = dataset[0:train_size, :], dataset[train_size:len(dataset), :]
-x_train, y_train = create_dataset(train, look_back)
-x_test, y_test = create_dataset(test, look_back)
+model_keys = [['prices'], ['prices', 'tension'], ['prices', 'depression']]
+for key in model_keys:
 
-# Build stock prediction model
-model = Sequential()
-model.add(LSTM(10, input_shape=(x_train.shape[1], look_back)))
-model.add(Dense(1))
-model.add(Activation('relu'))
-model.compile(loss="mean_squared_error", optimizer='adam', metrics=['mape'])
+    # Get poms data
+    look_back = 14
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    df = pd.read_csv('result/df/poms_frame.csv').set_index('dates')
+    dataset = df.loc[:, key]
+    dataset = scaler.fit_transform(dataset)
+    train_size = int(len(dataset) * 0.9)
+    test_size = len(dataset) - train_size
+    train, test = dataset[0:train_size, :], dataset[train_size:len(dataset), :]
+    x_train, y_train = create_dataset(train, look_back)
+    x_test, y_test = create_dataset(test, look_back)
 
-# Learning model
-early_stopping = EarlyStopping(monitor='mape', mode='auto')
-model.fit(
-    x_train,
-    y_train,
-    batch_size=512,
-    epochs=10000,
-)
-# callbacks=[early_stopping])
-model.save('model/tension.h5')
+    # Build stock prediction model
+    model = Sequential()
+    model.add(LSTM(10, input_shape=(x_train.shape[1], look_back)))
+    model.add(Dense(1))
+    model.add(Activation('relu'))
+    model.compile(loss="mean_squared_error",
+                  optimizer='adam',
+                  metrics=['mape'])
 
-# Prediction
-pad_col = np.zeros(dataset.shape[1] - 1)
+    # Learning model
+    early_stopping = EarlyStopping(monitor='mape', mode='auto')
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=512,
+        epochs=10000,
+    )
+    # callbacks=[early_stopping])
+    model.save(f'model/{key[-1]}.h5')
+
+    # Prediction
+    pad_col = np.zeros(dataset.shape[1] - 1)
+    predicted = scaler.inverse_transform(pad_array(model.predict(x_test)))[:,
+                                                                           0]
+    # Test
+    actual = scaler.inverse_transform(pad_array(y_test))[:, 0]
+    mda_score = mda(actual, predicted) * 100
+    binary_score = binary(actual, predicted) * 100
+    print(f'mda score: {round(mda_score)}%')
+    result = pd.DataFrame({'predict': predicted, 'actual': actual})
+    result.plot()
+    plt.show()
 
 
 def pad_array(val):
     return np.array([np.insert(pad_col, 0, x) for x in val])
-
-
-predicted = scaler.inverse_transform(pad_array(model.predict(x_test)))[:, 0]
-
-# Test
-actual = scaler.inverse_transform(pad_array(y_test))[:, 0]
-mda_score = mda(actual, predicted) * 100
-binary_score = binary(actual, predicted) * 100
-print(f'mda score: {round(mda_score)}%')
-result = pd.DataFrame({'predict': predicted, 'actual': actual})
-result.plot()
-plt.show()
