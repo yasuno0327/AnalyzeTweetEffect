@@ -17,7 +17,7 @@ def save_db(year_datas):
 prefix = 'condensed_'
 suffix = '.json'
 
-for year in range(2009, 2019):
+for year in range(2017, 2020):
     filename = prefix + str(year) + suffix
     serializer = DataSerializer(filename)
     year_datas = serializer.text_datas()

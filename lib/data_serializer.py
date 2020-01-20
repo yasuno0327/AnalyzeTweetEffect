@@ -1,6 +1,8 @@
 import json
 import os
 from datetime import datetime as dt
+from pytz import timezone
+import pytz
 
 
 class DataSerializer():
@@ -14,10 +16,13 @@ class DataSerializer():
         texts = []
         for data in self.datas:
             if data['is_retweet'] == False or data['in_reply_to_user_id_str'] == None:
+                time_format = '%a %b %d %H:%M:%S %z %Y'
                 parsed_time = dt.strptime(
-                    data['created_at'], '%a %b %d %H:%M:%S %z %Y')
+                    data['created_at'], time_format)
+                us_eastern = timezone('US/Eastern')
+                loc_dt = parsed_time.astimezone(us_eastern)
                 texts.append(
-                    {'text': data['text'], 'date': parsed_time})
+                    {'text': data['text'], 'date': loc_dt})
         self.texts = texts
         return texts
 
